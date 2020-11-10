@@ -1,0 +1,327 @@
+.TH  "jellyfin_selinux"  "8"  "20-11-09" "jellyfin" "SELinux Policy jellyfin"
+.SH "NAME"
+jellyfin_selinux \- Security Enhanced Linux Policy for the jellyfin processes
+.SH "DESCRIPTION"
+
+Security-Enhanced Linux secures the jellyfin processes via flexible mandatory access control.
+
+The jellyfin processes execute with the jellyfin_t SELinux type. You can check if you have these processes running by executing the \fBps\fP command with the \fB\-Z\fP qualifier.
+
+For example:
+
+.B ps -eZ | grep jellyfin_t
+
+
+.SH "ENTRYPOINTS"
+
+The jellyfin_t SELinux type can be entered via the \fBjellyfin_exec_t\fP file type.
+
+The default entrypoint paths for the jellyfin_t domain are the following:
+
+/usr/libexec/jellyfin/restart.sh, /usr/lib64/jellyfin/libhostfxr.so, /bin/jellyfin, /usr/bin/jellyfin, /usr/lib/jellyfin/jellyfin
+.SH PROCESS TYPES
+SELinux defines process types (domains) for each process running on the system
+.PP
+You can see the context of a process using the \fB\-Z\fP option to \fBps\bP
+.PP
+Policy governs the access confined processes have to files.
+SELinux jellyfin policy is very flexible allowing users to setup their jellyfin processes in as secure a method as possible.
+.PP
+The following process types are defined for jellyfin:
+
+.EX
+.B jellyfin_t
+.EE
+.PP
+Note:
+.B semanage permissive -a jellyfin_t
+can be used to make the process type jellyfin_t permissive. SELinux does not deny access to permissive process types, but the AVC (SELinux denials) messages are still generated.
+
+.SH BOOLEANS
+SELinux policy is customizable based on least access required.  jellyfin policy is extremely flexible and has several booleans that allow you to manipulate the policy and run jellyfin with the tightest access possible.
+
+
+.PP
+If you want to allow all domains to execute in fips_mode, you must turn on the fips_mode boolean. Enabled by default.
+
+.EX
+.B setsebool -P fips_mode 1
+
+.EE
+
+.SH PORT TYPES
+SELinux defines port types to represent TCP and UDP ports.
+.PP
+You can see the types associated with a port by using the following command:
+
+.B semanage port -l
+
+.PP
+Policy governs the access confined processes have to these ports.
+SELinux jellyfin policy is very flexible allowing users to setup their jellyfin processes in as secure a method as possible.
+.PP
+The following port types are defined for jellyfin:
+
+.EX
+.TP 5
+.B jellyfin_port_t
+.TP 10
+.EE
+
+
+Default Defined Ports:
+tcp 8096
+.EE
+udp 48265,43628,35146,49996,57354,7359
+.EE
+.SH "MANAGED FILES"
+
+The SELinux process type jellyfin_t can manage files labeled with the following file types.  The paths listed are the default paths for these file types.  Note the processes UID still need to have DAC permissions.
+
+.br
+.B cluster_conf_t
+
+	/etc/cluster(/.*)?
+.br
+
+.br
+.B cluster_var_lib_t
+
+	/var/lib/pcsd(/.*)?
+.br
+	/var/lib/cluster(/.*)?
+.br
+	/var/lib/openais(/.*)?
+.br
+	/var/lib/pengine(/.*)?
+.br
+	/var/lib/corosync(/.*)?
+.br
+	/usr/lib/heartbeat(/.*)?
+.br
+	/var/lib/heartbeat(/.*)?
+.br
+	/var/lib/pacemaker(/.*)?
+.br
+
+.br
+.B cluster_var_run_t
+
+	/var/run/crm(/.*)?
+.br
+	/var/run/cman_.*
+.br
+	/var/run/rsctmp(/.*)?
+.br
+	/var/run/aisexec.*
+.br
+	/var/run/heartbeat(/.*)?
+.br
+	/var/run/corosync-qnetd(/.*)?
+.br
+	/var/run/corosync-qdevice(/.*)?
+.br
+	/var/run/corosync\.pid
+.br
+	/var/run/cpglockd\.pid
+.br
+	/var/run/rgmanager\.pid
+.br
+	/var/run/cluster/rgmanager\.sk
+.br
+
+.br
+.B jellyfin_content_rw_t
+
+
+.br
+.B jellyfin_etc_t
+
+	/etc/jellyfin(/.*)?
+.br
+
+.br
+.B jellyfin_log_t
+
+	/var/log/jellyfin(/.*)?
+.br
+
+.br
+.B jellyfin_tmp_t
+
+
+.br
+.B jellyfin_tmpfs_t
+
+
+.br
+.B jellyfin_var_lib_t
+
+	/var/lib/jellyfin(/.*)?
+.br
+
+.br
+.B jellyfin_var_t
+
+	/var/cache/jellyfin(/.*)?
+.br
+
+.br
+.B root_t
+
+	/sysroot/ostree/deploy/.*-atomic/deploy(/.*)?
+.br
+	/
+.br
+	/initrd
+.br
+
+.SH FILE CONTEXTS
+SELinux requires files to have an extended attribute to define the file type.
+.PP
+You can see the context of a file using the \fB\-Z\fP option to \fBls\bP
+.PP
+Policy governs the access confined processes have to these files.
+SELinux jellyfin policy is very flexible allowing users to setup their jellyfin processes in as secure a method as possible.
+.PP
+
+.PP
+.B STANDARD FILE CONTEXT
+
+SELinux defines the file context types for the jellyfin, if you wanted to
+store files with these types in a diffent paths, you need to execute the semanage command to sepecify alternate labeling and then use restorecon to put the labels on disk.
+
+.B semanage fcontext -a -t jellyfin_content_rw_t '/srv/myjellyfin_content(/.*)?'
+.br
+.B restorecon -R -v /srv/myjellyfin_content
+
+Note: SELinux often uses regular expressions to specify labels that match multiple files.
+
+.I The following file types are defined for jellyfin:
+
+
+.EX
+.PP
+.B jellyfin_content_rw_t
+.EE
+
+- Set files with the jellyfin_content_rw_t type, if you want to treat the files as jellyfin content read/write content.
+
+
+.EX
+.PP
+.B jellyfin_content_t
+.EE
+
+- Set files with the jellyfin_content_t type, if you want to treat the files as jellyfin content.
+
+
+.EX
+.PP
+.B jellyfin_etc_t
+.EE
+
+- Set files with the jellyfin_etc_t type, if you want to store jellyfin files in the /etc directories.
+
+
+.EX
+.PP
+.B jellyfin_exec_t
+.EE
+
+- Set files with the jellyfin_exec_t type, if you want to transition an executable to the jellyfin_t domain.
+
+.br
+.TP 5
+Paths:
+/usr/libexec/jellyfin/restart.sh, /usr/lib64/jellyfin/libhostfxr.so, /bin/jellyfin, /usr/bin/jellyfin, /usr/lib/jellyfin/jellyfin
+
+.EX
+.PP
+.B jellyfin_lib_t
+.EE
+
+- Set files with the jellyfin_lib_t type, if you want to treat the files as jellyfin lib data.
+
+
+.EX
+.PP
+.B jellyfin_log_t
+.EE
+
+- Set files with the jellyfin_log_t type, if you want to treat the data as jellyfin log data, usually stored under the /var/log directory.
+
+
+.EX
+.PP
+.B jellyfin_tmp_t
+.EE
+
+- Set files with the jellyfin_tmp_t type, if you want to store jellyfin temporary files in the /tmp directories.
+
+
+.EX
+.PP
+.B jellyfin_tmpfs_t
+.EE
+
+- Set files with the jellyfin_tmpfs_t type, if you want to store jellyfin files on a tmpfs file system.
+
+
+.EX
+.PP
+.B jellyfin_usr_t
+.EE
+
+- Set files with the jellyfin_usr_t type, if you want to treat the files as jellyfin usr data.
+
+
+.EX
+.PP
+.B jellyfin_var_lib_t
+.EE
+
+- Set files with the jellyfin_var_lib_t type, if you want to store the jellyfin files under the /var/lib directory.
+
+
+.EX
+.PP
+.B jellyfin_var_t
+.EE
+
+- Set files with the jellyfin_var_t type, if you want to store the jell files under the /var directory.
+
+
+.PP
+Note: File context can be temporarily modified with the chcon command.  If you want to permanently change the file context you need to use the
+.B semanage fcontext
+command.  This will modify the SELinux labeling database.  You will need to use
+.B restorecon
+to apply the labels.
+
+.SH "COMMANDS"
+.B semanage fcontext
+can also be used to manipulate default file context mappings.
+.PP
+.B semanage permissive
+can also be used to manipulate whether or not a process type is permissive.
+.PP
+.B semanage module
+can also be used to enable/disable/install/remove policy modules.
+
+.B semanage port
+can also be used to manipulate the port definitions
+
+.B semanage boolean
+can also be used to manipulate the booleans
+
+.PP
+.B system-config-selinux
+is a GUI tool available to customize SELinux policy settings.
+
+.SH AUTHOR
+This manual page was auto-generated using
+.B "sepolicy manpage".
+
+.SH "SEE ALSO"
+selinux(8), jellyfin(8), semanage(8), restorecon(8), chcon(1), sepolicy(8), setsebool(8)

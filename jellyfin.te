@@ -1,0 +1,279 @@
+policy_module(jellyfin, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+# jellyfin_t is the domain under which the JellyFin server will run.
+# The entry points for this domain will be labeled jellyfin_exec_t.
+type jellyfin_t;
+type jellyfin_exec_t;
+init_daemon_domain(jellyfin_t, jellyfin_exec_t)
+init_domain(jellyfin_t, jellyfin_exec_t)
+
+# Create a domain for plexmediaserver config file and
+# allow jellyfin_t to read it.
+type jellyfin_etc_t;
+files_config_file(jellyfin_etc_t)
+
+# Jellyfin's logs in /var/log/jellyfin
+type jellyfin_log_t;
+logging_log_file(jellyfin_log_t)
+
+# JellyFin's resources in /usr/lib64/jellyfin, except its executables,
+# will be labeled jellyfin_lib_t.
+type jellyfin_lib_t;
+files_type(jellyfin_lib_t)
+
+# /usr/share/jellyfin-web
+type jellyfin_usr_t;
+files_type(jellyfin_usr_t)
+
+# /var/cache/jellyfin
+type jellyfin_var_t;
+files_type(jellyfin_var_t)
+files_var_filetrans(jellyfin_t, jellyfin_var_t, { file dir lnk_file })
+
+# /var/lib/jellyfin
+type jellyfin_var_lib_t;
+files_type(jellyfin_var_lib_t)
+files_var_lib_filetrans(jellyfin_t, jellyfin_var_lib_t, { file dir lnk_file })
+
+# Port 8096 by default.
+type jellyfin_port_t;
+corenet_port(jellyfin_port_t)
+
+# Packets on the jellyfin server port.
+type jellyfin_server_packet_t;
+corenet_server_packet(jellyfin_server_packet_t)
+
+# Temporary files.
+type jellyfin_tmp_t;
+files_tmp_file(jellyfin_tmp_t)
+files_tmp_filetrans(jellyfin_t, jellyfin_tmp_t, { file dir fifo_file sock_file })
+
+# In-memory temporary files.
+type jellyfin_tmpfs_t;
+files_tmp_file(jellyfin_tmpfs_t)
+fs_tmpfs_filetrans(jellyfin_t, jellyfin_tmpfs_t, { dir file lnk_file })
+#filetrans_pattern(jellyfin_t, tmpfs_t, jellyfin_tmpfs_t, { dir file lnk_file })
+
+# Jellyfin media, e.g., /var/lib/media
+type jellyfin_content_t;
+files_type(jellyfin_content_t)
+
+type jellyfin_content_rw_t;
+files_type(jellyfin_content_rw_t)
+
+# Set as permissive for development
+#permissive jellyfin_t;
+
+
+########################################
+#
+# Tunables
+#
+
+# Allows jellyfin to read any file or directory on the system.
+gen_tunable(jellyfin_access_all_ro, false)
+tunable_policy(`jellyfin_access_all_ro',`
+        fs_read_noxattr_fs_files(jellyfin_t)
+        files_list_non_auth_dirs(jellyfin_t)
+        files_read_non_auth_symlinks(jellyfin_t)
+        files_read_non_auth_files(jellyfin_t)
+')
+
+# Allows jellyfin to list all directories. This enables the directory browser in 
+# the web ui to browse the filesystem. 
+#
+# While this is disabled, directories cannot be browsed and paths must be typed 
+# in when adding libraries to jellyfin.
+#
+# Attempting to use the directory browser ui with this disabled will 
+# generate a lot of AVC denials.
+gen_tunable(allow_jellyfin_list_all_dirs, true)
+tunable_policy(`allow_jellyfin_list_all_dirs',`
+        files_list_non_auth_dirs(jellyfin_t)
+        files_read_non_auth_symlinks(jellyfin_t)
+')
+files_dontaudit_getattr_all_files(jellyfin_t)
+
+# Allow jellyfin to read /etc/samba configuration
+# in order to discover network drives.
+gen_tunable(allow_jellyfin_discover_samba, true)
+gen_require(`
+	type samba_etc_t;
+')
+tunable_policy(`allow_jellyfin_discover_samba',`
+	allow jellyfin_t samba_etc_t:dir search;
+	allow jellyfin_t samba_etc_t:file { getattr lock open read };
+')
+dontaudit jellyfin_t samba_etc_t:dir search;
+
+# Allows jellyfin to make network requests. This enables metadata fetching
+# and DLNA.
+gen_tunable(jellyfin_can_network_connect, true)
+tunable_policy(`jellyfin_can_network_connect',`
+	corenet_tcp_connect_all_ports(jellyfin_t)
+')
+
+########################################
+#
+# jellyfin local policy
+#
+
+domain_use_interactive_fds(jellyfin_t)
+
+files_read_etc_files(jellyfin_t)
+
+miscfiles_read_localization(jellyfin_t)
+
+# Temporary files
+manage_dirs_pattern(jellyfin_t, jellyfin_tmp_t, jellyfin_tmp_t)
+manage_files_pattern(jellyfin_t, jellyfin_tmp_t, jellyfin_tmp_t)
+manage_lnk_files_pattern(jellyfin_t, jellyfin_tmp_t, jellyfin_tmp_t)
+
+manage_dirs_pattern(jellyfin_t, jellyfin_tmpfs_t, jellyfin_tmpfs_t)
+manage_files_pattern(jellyfin_t, jellyfin_tmpfs_t, jellyfin_tmpfs_t)
+manage_lnk_files_pattern(jellyfin_t, jellyfin_tmpfs_t, jellyfin_tmpfs_t)
+
+manage_dirs_pattern(jellyfin_t, jellyfin_var_t, jellyfin_var_t)
+manage_files_pattern(jellyfin_t, jellyfin_var_t, jellyfin_var_t)
+manage_lnk_files_pattern(jellyfin_t, jellyfin_var_t, jellyfin_var_t)
+
+# Create a domain for jellyfin variable files
+# and allow jellyfin_t to manage them.
+files_search_var_lib(jellyfin_t)
+manage_dirs_pattern(jellyfin_t, jellyfin_var_lib_t, jellyfin_var_lib_t)
+manage_files_pattern(jellyfin_t, jellyfin_var_lib_t, jellyfin_var_lib_t)
+manage_lnk_files_pattern(jellyfin_t, jellyfin_var_lib_t, jellyfin_var_lib_t)
+
+# Create a pair customizable type for labeling content
+# allowed to be shared by jellyfin. A read only type, and a managable type.
+list_dirs_pattern(jellyfin_t, jellyfin_content_t, jellyfin_content_t)
+read_files_pattern(jellyfin_t, jellyfin_content_t, jellyfin_content_t)
+manage_dirs_pattern(jellyfin_t, jellyfin_content_rw_t, jellyfin_content_rw_t)
+manage_files_pattern(jellyfin_t, jellyfin_content_rw_t, jellyfin_content_rw_t)
+
+jellyfin_tcp_bind_jellyfin_port(jellyfin_t)
+jellyfin_tcp_connect_jellyfin_port(jellyfin_t)
+jellyfin_sendrecv_jellyfin_server_packets(jellyfin_t)
+jellyfin_udp_bind_jellyfin_port(jellyfin_t)
+#corenet_tcp_connect_generic_port(jellyfin_t)
+#corenet_tcp_connect_http_port(jellyfin_t)
+#corenet_tcp_sendrecv_all_if(jellyfin_t)
+#corenet_tcp_sendrecv_all_nodes(jellyfin_t)
+#corenet_tcp_sendrecv_all_ports(jellyfin_t)
+corenet_tcp_bind_all_nodes(jellyfin_t)
+corenet_udp_bind_all_nodes(jellyfin_t)
+#corenet_tcp_bind_generic_port(jellyfin_t)
+#corenet_udp_sendrecv_all_if(jellyfin_t)
+#corenet_udp_sendrecv_all_nodes(jellyfin_t)
+#corenet_udp_sendrecv_all_ports(jellyfin_t)
+#corenet_udp_bind_generic_port(jellyfin_t)
+
+# Run own executables
+can_exec(jellyfin_t, jellyfin_exec_t)
+
+# Allow configuring the dynamic linker
+libs_exec_ldconfig(jellyfin_t)
+
+# Allow reading random devices
+dev_read_rand(jellyfin_t)
+dev_read_urand(jellyfin_t)
+
+# Search /usr/lib64/jellyfin
+search_dirs_pattern(jellyfin_t, jellyfin_lib_t, jellyfin_lib_t)
+list_dirs_pattern(jellyfin_t, jellyfin_lib_t, jellyfin_lib_t)
+
+# Read SSL certs directory
+miscfiles_read_generic_certs(jellyfin_t)
+
+# Read own web directory (/usr/share/jellyfin-web)
+list_dirs_pattern(jellyfin_t, jellyfin_usr_t, jellyfin_usr_t)
+read_files_pattern(jellyfin_t, jellyfin_usr_t, jellyfin_usr_t)
+
+# Needed for /bin/sh, which is needed for /usr/libexec/jellyfin/restart.sh
+corecmd_exec_shell(jellyfin_t)
+
+# Read own configuration files
+list_dirs_pattern(jellyfin_t, jellyfin_etc_t, jellyfin_etc_t)
+read_files_pattern(jellyfin_t, jellyfin_etc_t, jellyfin_etc_t)
+
+# Needed for writing logs
+manage_dirs_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+append_files_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+create_files_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+read_files_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+setattr_files_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+read_lnk_files_pattern(jellyfin_t, jellyfin_log_t, jellyfin_log_t)
+logging_log_filetrans(jellyfin_t, jellyfin_log_t, file)
+logging_send_syslog_msg(jellyfin_t)
+
+# Needed for ffmpeg
+corecmd_exec_bin(jellyfin_t)
+
+# Allow reading system state
+kernel_read_system_state(jellyfin_t)
+kernel_read_network_state(jellyfin_t)
+kernel_read_fs_sysctls(jellyfin_t)
+sysnet_read_config(jellyfin_t)
+
+#######################################
+#
+# jellyfin allow rules
+#
+
+# Networking
+allow jellyfin_t self:tcp_socket { create_stream_socket_perms server_stream_socket_perms };
+allow jellyfin_t self:udp_socket create_socket_perms;
+allow jellyfin_t self:netlink_route_socket create_netlink_socket_perms;
+
+# Own processes/files
+allow jellyfin_t self:process { execmem getsession setsched };
+allow jellyfin_t jellyfin_log_t:file rw_file_perms;
+allow jellyfin_t jellyfin_etc_t:file rw_file_perms;
+allow jellyfin_t jellyfin_lib_t:file { lock mmap_file_perms };
+allow jellyfin_t jellyfin_var_lib_t:file map;
+allow jellyfin_t jellyfin_tmpfs_t:file map;
+allow jellyfin_t jellyfin_tmp_t:fifo_file manage_fifo_file_perms;
+allow jellyfin_t jellyfin_tmp_t:sock_file manage_sock_file_perms;
+
+# Check for space in tmpfs
+allow jellyfin_t tmpfs_t:filesystem getattr;
+
+# SSSD? Why?
+gen_require(`
+	type sssd_public_t, sssd_var_lib_t;
+')
+allow jellyfin_t sssd_public_t:file map;
+allow jellyfin_t sssd_public_t:file { getattr open read };
+allow jellyfin_t sssd_var_lib_t:dir search;
+
+# Needed for hardware acceleration and network status detection?
+gen_require(`
+	type sysctl_net_t, sysfs_t;
+')
+
+# Checks /proc/sys/net/ipv4/conf/lo/forwarding
+allow jellyfin_t sysctl_net_t:dir search;
+allow jellyfin_t sysctl_net_t:file { getattr lock open read };
+
+# Checks /sys/devices/system/node/node0/meminfo and /sys/devices/virtual/net/lo/operstate
+gen_require(`
+	type fs_t, sysfs_t;
+')
+allow jellyfin_t fs_t:filesystem getattr;
+allow jellyfin_t sysfs_t:dir read;
+allow jellyfin_t sysfs_t:file read_file_perms;
+allow jellyfin_t sysfs_t:lnk_file read;
+
+# CGroup aware?
+gen_require(`
+	type cgroup_t, init_t;
+')
+allow jellyfin_t cgroup_t:dir search;
+allow jellyfin_t cgroup_t:file read_file_perms;
+allow jellyfin_t init_t:file read_file_perms;
+

@@ -1,0 +1,24 @@
+# Server libraries
+/usr/lib/jellyfin(/.*)?					gen_context(system_u:object_r:jellyfin_lib_t,s0)
+
+# Executable files
+/usr/lib/jellyfin/jellyfin			--	gen_context(system_u:object_r:jellyfin_exec_t,s0)
+/usr/libexec/jellyfin/restart.sh		--	gen_context(system_u:object_r:jellyfin_exec_t,s0)
+/usr/lib64/jellyfin/libhostfxr.so		--	gen_context(system_u:object_r:jellyfin_exec_t,s0)
+/usr/bin/jellyfin				--	gen_context(system_u:object_r:jellyfin_exec_t,s0)
+/bin/jellyfin					--	gen_context(system_u:object_r:jellyfin_exec_t,s0)
+
+# System config files
+/etc/jellyfin(/.*)?					gen_context(system_u:object_r:jellyfin_etc_t,s0)
+
+# Server-internal config files
+/var/lib/jellyfin(/.*)?					gen_context(system_u:object_r:jellyfin_var_lib_t,s0)
+
+# Static web content
+/usr/share/jellyfin-web(/.*)?				gen_context(system_u:object_r:jellyfin_usr_t,s0)
+
+# Log files
+/var/log/jellyfin(/.*)?					gen_context(system_u:object_r:jellyfin_log_t,s0)
+
+# Cache files
+/var/cache/jellyfin(/.*)?				gen_context(system_u:object_r:jellyfin_var_t,s0)

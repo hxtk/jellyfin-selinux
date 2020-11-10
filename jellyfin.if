@@ -1,0 +1,150 @@
+
+## <summary>policy for jellyfin</summary>
+
+########################################
+## <summary>
+##	Execute jellyfin_exec_t in the jellyfin domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`jellyfin_domtrans',`
+	gen_require(`
+		type jellyfin_t, jellyfin_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, jellyfin_exec_t, jellyfin_t)
+')
+
+######################################
+## <summary>
+##	Execute jellyfin in the caller domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`jellyfin_exec',`
+	gen_require(`
+		type jellyfin_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	can_exec($1, jellyfin_exec_t)
+')
+
+########################################
+## <summary>
+##      Make a TCP connection to the jellyfin ports.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`jellyfin_tcp_connect_jellyfin_port',`
+        gen_require(`
+                type jellyfin_port_t;
+        ')
+
+        allow $1 jellyfin_port_t:tcp_socket name_connect;
+')
+
+########################################
+## <summary>
+##      Send and receive jellyfin_server packets.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+## <infoflow type="both" weight="10"/>
+#
+interface(`jellyfin_sendrecv_jellyfin_server_packets',`
+        jellyfin_send_jellyfin_server_packets($1)
+        jellyfin_receive_jellyfin_server_packets($1)
+')
+
+########################################
+## <summary>
+##      Send jellyfin_server packets.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+## <infoflow type="write" weight="10"/>
+#
+interface(`jellyfin_send_jellyfin_server_packets',`
+        gen_require(`
+                type jellyfin_server_packet_t;
+        ')
+
+        allow $1 jellyfin_server_packet_t:packet send;
+')
+
+########################################
+## <summary>
+##      Receive jellyfin_server packets.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+## <infoflow type="read" weight="10"/>
+#
+interface(`jellyfin_receive_jellyfin_server_packets',`
+        gen_require(`
+                type jellyfin_server_packet_t;
+        ')
+
+        allow $1 jellyfin_server_packet_t:packet recv;
+')
+
+########################################
+## <summary>
+##      Bind TCP sockets to the jellyfin port.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+## <infoflow type="none"/>
+#
+interface(`jellyfin_tcp_bind_jellyfin_port',`
+        gen_require(`
+                type jellyfin_port_t;
+        ')
+
+        allow $1 jellyfin_port_t:tcp_socket name_bind;
+        allow $1 self:capability net_bind_service;
+')
+
+########################################
+## <summary>
+##      Bind UDP sockets to jellyfin ports.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`jellyfin_udp_bind_jellyfin_port',`
+        gen_require(`
+                type jellyfin_port_t, ssdp_port_t;
+        ')
+
+        allow $1 { jellyfin_port_t ssdp_port_t }:udp_socket name_bind;
+')
