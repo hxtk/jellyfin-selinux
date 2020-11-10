@@ -44,9 +44,13 @@ make -f /usr/share/selinux/devel/Makefile jellyfin.pp || exit
 
 # Generate a man page off the installed module
 sepolicy manpage -p . -d jellyfin_t
-# Fixing the file context on /usr/lib/jellyfinmediaserver/Plex Media Server
-/sbin/restorecon -F -R -v "/usr/lib/jellyfinmediaserver"
-/sbin/restorecon -F -R -v "/var/lib/jellyfinmediaserver"
+# Fixing the file context on Jellyfin directories.
+/sbin/restorecon -F -R -v "/etc/jellyfin"
+/sbin/restorecon -F -R -v "/usr/lib64/jellyfin"
+/sbin/restorecon -F -R -v "/usr/libexec/jellyfin"
+/sbin/restorecon -F -R -v "/usr/share/jellyfin-web"
+/sbin/restorecon -F -R -v "/var/lib/jellyfin"
+/sbin/restorecon -F -R -v "/var/cache/jellyfin"
 # Generate a rpm package for the newly generated policy
 
 pwd=$(pwd)
