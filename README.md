@@ -13,10 +13,11 @@ This project is not formally affiliated with the Jellyfin project in any way.
 ## Content
 
 Under the default policy, it is expected that your media will be labeled `jellyfin_content_t`, but the default `fcontext` does not map any directories to this domain.
-In order to add media under this policy, you will have to execute the following command:
+In order to add media under this policy, you will have to execute the following command sequence:
 
 ```
 # semanage fcontext -a -t jellyfin_content_t "/path/to/your/media(.*)?"
+# restorecon -Rv /path/to/your/media
 ```
 
 Alternatively, for a more permissive system you can allow all paths to be used as media folders by default. See **Booleans** below.
